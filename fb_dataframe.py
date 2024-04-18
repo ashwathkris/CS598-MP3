@@ -182,58 +182,53 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    builder = flatbuffers.Builder(len(fb_buf))
-    builder.Finish(builder.CreateByteVector(fb_buf))
-    df = DataFrame.GetRootAsDataFrame(builder.Output(), 0)
-
+    buf = bytearray(fb_buf)  # Copy to a mutable bytearray
+    df = DataFrame.GetRootAs(buf, 0)
     num_columns = df.ColumnsLength()
+
+    builder = flatbuffers.Builder(1024)
 
     for i in range(num_columns):
         column = df.Columns(i)
         metadata = column.Metadata()
-
-        if metadata.Name().decode() == col_name:
-            dtype = metadata.Dtype()
-            if dtype == ValueType.Int:
-                int_values = []
+        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+            new_values = []
+            if metadata.Dtype() == ValueType.Int:
                 for j in range(column.IntValuesLength()):
-                    int_values.append(column.IntValues(j))
+                    new_values.append(map_func(column.IntValues(j)))
+            elif metadata.Dtype() == ValueType.Float:
+                for j in range(column.FloatValuesLength()):
+                    new_values.append(map_func(column.FloatValues(j)))
 
-                # Modify in-place
-                new_int_values = [map_func(value) for value in int_values]
-
-                # Rebuild the column and the entire DataFrame in FlatBuffer
-                start = Column.StartIntValuesVector(builder, len(new_int_values))
-                for value in reversed(new_int_values):
+            if metadata.Dtype() == ValueType.Int:
+                Column.StartIntValuesVector(builder, len(new_values))
+                for value in reversed(new_values):
                     builder.PrependInt64(value)
-                int_values = builder.EndVector(len(new_int_values))
+            else:
+                Column.StartFloatValuesVector(builder, len(new_values))
+                for value in reversed(new_values):
+                    builder.PrependFloat64(value)
                 
-                Metadata.Start(builder)
-                Metadata.AddName(builder, builder.CreateString(metadata.Name().decode()))
-                Metadata.AddDtype(builder, ValueType.Int)
-                meta = Metadata.End(builder)
+            values_vector = builder.EndVector(len(new_values))
+            Column.Start(builder)
+            Metadata.Start(builder)
+            Metadata.AddName(builder, builder.CreateString(metadata.Name().decode()))
+            Metadata.AddDtype(builder, metadata.Dtype())
+            meta = Metadata.End(builder)
+            Column.AddMetadata(builder, meta)
+            if metadata.Dtype() == ValueType.Int:
+                Column.AddIntValues(builder, values_vector)
+            else:
+                Column.AddFloatValues(builder, values_vector)
+            new_column = Column.End(builder)
+            DataFrame.StartColumnsVector(builder, 1)
+            builder.PrependUOffsetTRelative(new_column)
+            columns_vector = builder.EndVector(1)
+            DataFrame.Start(builder)
+            DataFrame.AddColumns(builder, columns_vector)
+            df_data = DataFrame.End(builder)
+            builder.Finish(df_data)
+            return bytes(builder.Output())
 
-                Column.Start(builder)
-                Column.AddMetadata(builder, meta)
-                Column.AddIntValues(builder, int_values)
-                new_column = Column.End(builder)
-
-                # Rebuild DataFrame with updated columns
-                DataFrame.StartColumnsVector(builder, num_columns)
-                # We assume column order is the same and only change the modified column
-                for j in range(num_columns):
-                    if j == i:
-                        builder.PrependUOffsetTRelative(new_column)
-                    else:
-                        builder.PrependUOffsetTRelative(df.Columns(j))
-
-                columns_vector = builder.EndVector(num_columns)
-                DataFrame.Start(builder)
-                DataFrame.AddColumns(builder, columns_vector)
-                df_data = DataFrame.End(builder)
-
-                builder.Finish(df_data)
-                return builder.Output()
-
-    return fb_buf
+    return bytes(fb_buf)
     
