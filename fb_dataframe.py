@@ -226,7 +226,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
             value_type = metadata.Dtype()
             value_size = 8  # Size for both int64 and float64
-            unpack_format = '<q' if value_type == ValueType.Int else '<d'  # Format for unpacking ints or floats
+            unpack_format = '<q' if value_type == ValueType.ValueType().Int else '<d'  # Format for unpacking ints or floats
 
             # Get the column's value vector
             values_func = column.IntValues if value_type == ValueType.ValueType().Int else column.FloatValues
