@@ -216,15 +216,14 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    df = DataFrame.GetRootAsDataFrame(fb_buf, 0)  # Deserialize the DataFrame from the buffer
+    df = DataFrame.DataFrame.GetRootAsDataFrame(fb_buf, 0)  # Deserialize the DataFrame from the buffer
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
         if metadata.Name().decode() == col_name:
-            if metadata.Dtype() in (ValueType.Int, ValueType.Float):
-                dtype = '<q' if metadata.Dtype() == ValueType.Int else '<d'
-                values_func = column.IntValues if metadata.Dtype() == ValueType.Int else column.FloatValues
-                length = column.IntValuesLength() if metadata.Dtype() == ValueType.Int else column.FloatValuesLength()
+            if metadata.Dtype() in (ValueType.ValueType().Int, ValueType.ValueType().Float):
+                dtype = '<q' if metadata.Dtype() == ValueType.ValueType().Int else '<d'
+                length = column.IntValuesLength() if metadata.Dtype() == ValueType.ValueType().Int else column.FloatValuesLength()
                 for j in range(length()):
                     offset = j * 8  # Assuming each value is stored contiguously and starts at index 0
                     value, = struct.unpack_from(dtype, fb_buf, offset)
