@@ -125,7 +125,38 @@ def fb_dataframe_head(fb_bytes: bytes, rows: int = 5) -> pd.DataFrame:
         @param fb_bytes: bytes of the Flatbuffer Dataframe.
         @param rows: number of rows to return.
     """
-    return pd.DataFrame()  # REPLACE THIS WITH YOUR CODE...
+    buf = flatbuffers.Builder(0)
+    buf.Bytes = fb_bytes
+
+    # Get the DataFrame from bytes
+    df = DataFrame.DataFrame.GetRootAsDataFrame(buf.Bytes, 0)
+
+    # Prepare to collect columns data
+    columns = {}
+
+    # Iterate over columns
+    for i in range(df.ColumnsLength()):
+        col = df.Columns(i)
+        meta = col.Metadata()
+        col_name = meta.Name().decode()
+
+        if meta.Dtype() == ValueType.ValueType().Int:
+            # Extract integer values
+            values = [col.IntValues(j) for j in range(min(col.IntValuesLength(), rows))]
+        elif meta.Dtype() == ValueType.ValueType().Float:
+            # Extract float values
+            values = [col.FloatValues(j) for j in range(min(col.FloatValuesLength(), rows))]
+        elif meta.Dtype() == ValueType.ValueType().String:
+            # Extract string values
+            values = [col.StringValues(j).decode() for j in range(min(col.StringValuesLength(), rows))]
+
+        # Store column in dictionary
+        columns[col_name] = values
+
+    # Create a DataFrame from the dictionary
+    result_df = pd.DataFrame(columns)
+
+    return result_df
 
 
 def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_name: str) -> pd.DataFrame:
@@ -151,45 +182,58 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = bytearray(fb_buf)
-    builder = flatbuffers.Builder(0)
-    builder.Finish(buf)
+    builder = flatbuffers.Builder(len(fb_buf))
+    builder.Finish(builder.CreateByteVector(fb_buf))
+    df = DataFrame.GetRootAsDataFrame(builder.Output(), 0)
 
-    # Get the DataFrame root from the buffer
-    df = DataFrame.DataFrame.GetRootAs(buf, 0)
     num_columns = df.ColumnsLength()
 
-    # Iterate through all columns in the DataFrame
     for i in range(num_columns):
         column = df.Columns(i)
         metadata = column.Metadata()
-        dtype = metadata.Dtype()
 
-        # Check for column name and type
         if metadata.Name().decode() == col_name:
+            dtype = metadata.Dtype()
             if dtype == ValueType.Int:
-                # Process int64 values
-                int_values = [column.IntValues(j) for j in range(column.IntValuesLength())]
-                mapped_values = list(map(map_func, int_values))
-                # Modify the values in the buffer
-                for j, value in enumerate(mapped_values):
-                    builder.PrependInt64(value)
-                # Update the vector with new values
-                values = builder.EndVector(len(mapped_values))
-                Column.AddIntValues(builder, values)
-                
-            elif dtype == ValueType.Float:
-                # Process float64 values
-                float_values = [column.FloatValues(j) for j in range(column.FloatValuesLength())]
-                mapped_values = list(map(map_func, float_values))
-                # Modify the values in the buffer
-                for j, value in enumerate(mapped_values):
-                    builder.PrependFloat64(value)
-                # Update the vector with new values
-                values = builder.EndVector(len(mapped_values))
-                Column.AddFloatValues(builder, values)
+                int_values = []
+                for j in range(column.IntValuesLength()):
+                    int_values.append(column.IntValues(j))
 
-            # No action for string columns as per specification
-            break 
-    pass
+                # Modify in-place
+                new_int_values = [map_func(value) for value in int_values]
+
+                # Rebuild the column and the entire DataFrame in FlatBuffer
+                start = Column.StartIntValuesVector(builder, len(new_int_values))
+                for value in reversed(new_int_values):
+                    builder.PrependInt64(value)
+                int_values = builder.EndVector(len(new_int_values))
+                
+                Metadata.Start(builder)
+                Metadata.AddName(builder, builder.CreateString(metadata.Name().decode()))
+                Metadata.AddDtype(builder, ValueType.Int)
+                meta = Metadata.End(builder)
+
+                Column.Start(builder)
+                Column.AddMetadata(builder, meta)
+                Column.AddIntValues(builder, int_values)
+                new_column = Column.End(builder)
+
+                # Rebuild DataFrame with updated columns
+                DataFrame.StartColumnsVector(builder, num_columns)
+                # We assume column order is the same and only change the modified column
+                for j in range(num_columns):
+                    if j == i:
+                        builder.PrependUOffsetTRelative(new_column)
+                    else:
+                        builder.PrependUOffsetTRelative(df.Columns(j))
+
+                columns_vector = builder.EndVector(num_columns)
+                DataFrame.Start(builder)
+                DataFrame.AddColumns(builder, columns_vector)
+                df_data = DataFrame.End(builder)
+
+                builder.Finish(df_data)
+                return builder.Output()
+
+    return fb_buf
     
