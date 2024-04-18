@@ -216,25 +216,39 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = bytes(fb_buf)
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
+    fb_bytes = bytearray(fb_buf)  # Convert memoryview to bytearray for in-place modifications
+    fb_df = DataFrame.GetRootAsDataFrame(fb_bytes, 0)
 
-    # Iterate over columns to find the target column
-    for i in range(df.ColumnsLength()):
-        col = df.Columns(i)
-        metadata = col.Metadata()
+    column = None
+    for i in range(fb_df.ColumnsLength()):
+        col = fb_df.Columns(i)
+        if col.Metadata().Name().decode() == col_name:
+            if col.Metadata().Dtype() in [ValueType.Int, ValueType.Float]:
+                column = col
+                break
 
-        # Check if this is the right column and it is numeric
-        if metadata.Name().decode() == col_name and metadata.Dtype() in (ValueType.ValueType().Int, ValueType.ValueType().Float):
-            # Determine the type and get the appropriate value array
-            if metadata.Dtype() == ValueType.ValueType().Int:
-                values = col.IntValuesAsNumpy().copy()  # Create a writable copy
-                for j in range(len(values)):
-                    values[j] = map_func(values[j])
-            elif metadata.Dtype() == ValueType.ValueType().Float:
-                values = col.FloatValuesAsNumpy().copy()  # Create a writable copy
-                for j in range(len(values)):
-                    values[j] = map_func(values[j])
-            fb_buf = values
-            break
+    if not column:
+        print("Column not found or not a numeric type.")
+        return  # Early exit if column is not found or is of an incorrect type
+
+    if column.Metadata().Dtype() == ValueType.Int:
+        offset_base = column._tab.Vector(column._tab.Offset(6))
+        num_elements = column.IntValuesLength()
+        for j in range(num_elements):
+            offset = offset_base + j * 8
+            original_value = struct.unpack('<q', fb_bytes[offset:offset + 8])[0]
+            new_value = map_func(original_value)
+            fb_bytes[offset:offset + 8] = struct.pack('<q', new_value)
+
+    elif column.Metadata().Dtype() == ValueType.Float:
+        offset_base = column._tab.Vector(column._tab.Offset(8))
+        num_elements = column.FloatValuesLength()
+        for j in range(num_elements):
+            offset = offset_base + j * 8
+            original_value = struct.unpack('<d', fb_bytes[offset:offset + 8])[0]
+            new_value = map_func(original_value)
+            fb_bytes[offset:offset + 8] = struct.pack('<d', new_value)
+
+    # Replace the original memoryview with the modified bytearray
+    fb_buf[:] = fb_bytes
     
