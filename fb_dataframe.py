@@ -216,28 +216,17 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = bytearray(fb_buf)  # Ensure the buffer is mutable
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Deserialize the DataFrame from the buffer
-    
-    # Iterate through columns to find the target numeric column
+    df = DataFrame.GetRootAsDataFrame(fb_buf, 0)  # Deserialize the DataFrame from the buffer
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
-        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
-            value_type = metadata.Dtype()
-            value_size = 8  # Size for both int64 and float64
-            unpack_format = '<q' if value_type == ValueType.ValueType().Int else '<d'  # Format for unpacking ints or floats
-
-            # Get the column's value vector
-            values_func = column.IntValues if value_type == ValueType.ValueType().Int else column.FloatValues
-            values_length = column.IntValuesLength() if value_type == ValueType.ValueType().Int else column.FloatValuesLength()
-
-            # Modify each element in the vector
-            for j in range(values_length):
-                element_offset = j * value_size  # Calculate the offset for each element
-                value, = struct.unpack_from(unpack_format, buf, element_offset)
-                new_value = map_func(value)
-                struct.pack_into(unpack_format, buf, element_offset, new_value)
-    
-    # Update the original buffer with modified data
-    fb_buf[:] = buf
+        if metadata.Name().decode() == col_name:
+            if metadata.Dtype() in (ValueType.Int, ValueType.Float):
+                dtype = '<q' if metadata.Dtype() == ValueType.Int else '<d'
+                values_func = column.IntValues if metadata.Dtype() == ValueType.Int else column.FloatValues
+                length = column.IntValuesLength() if metadata.Dtype() == ValueType.Int else column.FloatValuesLength()
+                for j in range(length()):
+                    offset = j * 8  # Assuming each value is stored contiguously and starts at index 0
+                    value, = struct.unpack_from(dtype, fb_buf, offset)
+                    modified_value = map_func(value)
+                    struct.pack_into(dtype, fb_buf, offset, modified_value)
