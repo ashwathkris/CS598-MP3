@@ -216,7 +216,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    df = DataFrame.DataFrame.GetRootAsDataFrame(fb_buf, 0)  # Deserialize the DataFrame from the buffer
+    df=DataFrame.DataFrame.GetRootAsDataFrame(fb_buf, 0)  # Deserialize the DataFrame from the buffer
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
