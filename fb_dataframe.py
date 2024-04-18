@@ -182,8 +182,8 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = bytearray(fb_buf)  # Copy to a mutable bytearray
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
+    buf = bytearray(fb_buf)  # Convert memoryview to bytearray for mutation
+    df = DataFrame.DataFrame.GetRootAs(buf, 0)
     num_columns = df.ColumnsLength()
 
     builder = flatbuffers.Builder(1024)
@@ -193,49 +193,53 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         column = df.Columns(i)
         metadata = column.Metadata()
         if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+            # Prepare new values
             new_values = []
-            if metadata.Dtype() == ValueType.Int:
+            data_type = metadata.Dtype()
+            if data_type == ValueType.Int:
                 for j in range(column.IntValuesLength()):
                     new_values.append(map_func(column.IntValues(j)))
-            elif metadata.Dtype() == ValueType.Float:
+            elif data_type == ValueType.Float:
                 for j in range(column.FloatValuesLength()):
                     new_values.append(map_func(column.FloatValues(j)))
 
-            # Prepare for rebuilding the column with new values
-            if metadata.Dtype() == ValueType.Int:
+            # Rebuild the vector
+            if data_type == ValueType.Int:
                 Column.StartIntValuesVector(builder, len(new_values))
             else:
                 Column.StartFloatValuesVector(builder, len(new_values))
-
             for value in reversed(new_values):
-                if metadata.Dtype() == ValueType.Int:
+                if data_type == ValueType.Int:
                     builder.PrependInt64(value)
                 else:
                     builder.PrependFloat64(value)
-
             values_vector = builder.EndVector(len(new_values))
 
+            # Build metadata and column objects properly
             Metadata.Start(builder)
-            Metadata.AddName(builder, builder.CreateString(metadata.Name().decode()))
-            Metadata.AddDtype(builder, metadata.Dtype())
+            name_offset = builder.CreateString(metadata.Name().decode())
+            Metadata.AddName(builder, name_offset)
+            Metadata.AddDtype(builder, data_type)
             meta = Metadata.End(builder)
 
             Column.Start(builder)
             Column.AddMetadata(builder, meta)
-            if metadata.Dtype() == ValueType.Int:
+            if data_type == ValueType.Int:
                 Column.AddIntValues(builder, values_vector)
             else:
                 Column.AddFloatValues(builder, values_vector)
             new_column = Column.End(builder)
 
+            # Rebuild the DataFrame with updated columns
             DataFrame.Start(builder)
             DataFrame.AddColumns(builder, builder.CreateVector([new_column]))
             df_data = DataFrame.End(builder)
 
             builder.Finish(df_data)
+            fb_buf[:] = builder.Output()  # Update the original buffer
             modified = True
-            break
+            break  # Exit the loop as we've done the necessary modification
 
-    if modified:
-        fb_buf[:] = bytes(builder.Output())
+    if not modified:
+        fb_buf[:] = bytes(buf)
     
