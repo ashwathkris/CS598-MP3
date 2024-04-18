@@ -201,7 +201,7 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
     # Sort and convert to DataFrame
     sorted_groups = sorted(group_sums.items())
     result_df = pd.DataFrame(sorted_groups, columns=[grouping_col_name, sum_col_name])
-    result_df.set_index(grouping_col_name, inplace=True).
+    result_df.set_index(grouping_col_name, inplace=True)
 
 
 def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func: types.FunctionType) -> None:
