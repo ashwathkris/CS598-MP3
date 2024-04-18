@@ -223,14 +223,14 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
-        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
             # Determine the value type and prepare data access parameters
             value_size = 8  # both int64 and float64 are 8 bytes
-            if metadata.Dtype() == ValueType.Int:
+            if metadata.Dtype() == ValueType.ValueType().Int:
                 unpack_format = '<q'  # Little-endian int64
                 values = column.IntValues
                 values_length = column.IntValuesLength
-            elif metadata.Dtype() == ValueType.Float:
+            elif metadata.Dtype() == ValueType.ValueType().Float:
                 unpack_format = '<d'  # Little-endian float64
                 values = column.FloatValues
                 values_length = column.FloatValuesLength
