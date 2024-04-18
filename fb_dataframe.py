@@ -217,7 +217,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     buf = bytes(fb_buf)
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
+    df = DataFrame.GetRootAsDataFrame(buf, 0)
 
     # Iterate over columns to find the target column
     for i in range(df.ColumnsLength()):
@@ -225,14 +225,14 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         metadata = col.Metadata()
 
         # Check if this is the right column and it is numeric
-        if metadata.Name().decode() == col_name and metadata.Dtype() in (ValueType.ValueType().Int, ValueType.ValueType().Float):
+        if metadata.Name().decode() == col_name and metadata.Dtype() in (ValueType.Int, ValueType.Float):
             # Determine the type and get the appropriate value array
-            if metadata.Dtype() == ValueType.ValueType().Int:
-                values = col.IntValuesAsNumpy()  # Using NumPy array for in-place operation
+            if metadata.Dtype() == ValueType.Int:
+                values = col.IntValuesAsNumpy().copy()  # Create a writable copy
                 for j in range(len(values)):
                     values[j] = map_func(values[j])
-            elif metadata.Dtype() == ValueType.ValueType().Float:
-                values = col.FloatValuesAsNumpy()  # Using NumPy array for in-place operation
+            elif metadata.Dtype() == ValueType.Float:
+                values = col.FloatValuesAsNumpy().copy()  # Create a writable copy
                 for j in range(len(values)):
                     values[j] = map_func(values[j])
             break
