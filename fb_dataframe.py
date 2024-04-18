@@ -216,4 +216,32 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    
+    buf = flatbuffers.Builder(0)
+    buf.Bytes = fb_buf
+    # Get the DataFrame from bytes
+    df = DataFrame.DataFrame.GetRootAsDataFrame(buf.Bytes, 0)
+    # Find the column index
+    col_index = -1
+    for i in range(df.ColumnsLength()):
+        col = df.Columns(i)
+        meta = col.Metadata()
+        if meta.Name().decode() == col_name and meta.Dtype() != ValueType.ValueType().String:
+            col_index = i
+            break
+    # Apply map_func to the column values
+    if col_index != -1:
+        column = df.Columns(col_index)
+        if column.Metadata().Dtype() == ValueType.ValueType().Int:
+            for j in range(column.IntValuesLength()):
+                value = column.IntValues(j)
+                new_value = map_func(value)
+                column.SetIntValues(j, new_value)
+        elif column.Metadata().Dtype() == ValueType.ValueType().Float:
+            for j in range(column.FloatValuesLength()):
+                value = column.FloatValues(j)
+                new_value = map_func(value)
+                column.SetFloatValues(j, new_value)
+    # Update the buffer with the modified DataFrame
+    buf.Finish(df.Pack(buf))
+    # Update the original buffer with the modified bytes
+    fb_buf[:] = buf.Output()
