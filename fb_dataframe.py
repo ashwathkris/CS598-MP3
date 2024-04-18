@@ -215,17 +215,38 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param col_name: name of the numeric column to apply map_func to.
         @param map_func: function to apply to elements in the numeric column.
     """
-    # Access the buffer using the FlatBuffers builder
-    df=DataFrame.DataFrame.GetRootAsDataFrame(fb_buf, 0)  # Deserialize the DataFrame from the buffer
-    for i in range(df.ColumnsLength()):
-        column = df.Columns(i)
-        metadata = column.Metadata()
-        if metadata.Name().decode() == col_name:
-            if metadata.Dtype() in (ValueType.ValueType().Int, ValueType.ValueType().Float):
-                dtype = '<q' if metadata.Dtype() == ValueType.ValueType().Int else '<d'
-                length = column.IntValuesLength() if metadata.Dtype() == ValueType.ValueType().Int else column.FloatValuesLength()
-                for j in range(length):
-                    offset = j * 8  # Assuming each value is stored contiguously and starts at index 0
-                    value, = struct.unpack_from(dtype, fb_buf, offset)
-                    modified_value = map_func(value)
-                    struct.pack_into(dtype, fb_buf, offset, modified_value)
+    col_index = -1
+    with struct.unpack("<q", fb_buf) as reader:
+        while True:
+            # Read the metadata name length
+            name_len = reader.unpack("<q")
+            if name_len == 0:
+                break  # End of columns
+            # Read the metadata name
+            name_bytes = reader.read(name_len)
+            name = name_bytes.decode("utf-8")
+            # Check if the column name matches
+            if name == col_name:
+                col_index = reader.unpack("<q")  # Get the column index
+                break
+    
+    if col_index == -1:
+        # Column not found
+        return
+    
+    # Get the start index of the column values
+    values_start = reader.tell()
+    
+    # Apply map function to each value in the column
+    reader.seek(values_start)  # Reset reader position
+    while True:
+        # Read the next value
+        try:
+            value = reader.unpack("<q")  # Assuming int column
+        except struct.error:
+            break  # End of column values
+        # Apply map function
+        new_value = map_func(value)
+        # Write the new value back to the buffer
+        reader.seek(-8, 1)  # Move back 8 bytes to overwrite the current value
+        reader.pack("<q", new_value)
