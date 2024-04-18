@@ -1,3 +1,4 @@
+from io import BytesIO
 import flatbuffers
 import pandas as pd
 import struct
@@ -215,38 +216,42 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param col_name: name of the numeric column to apply map_func to.
         @param map_func: function to apply to elements in the numeric column.
     """
-    col_index = -1
-    with struct.unpack("<q", fb_buf) as reader:
-        while True:
-            # Read the metadata name length
-            name_len = reader.unpack("<q")
-            if name_len == 0:
-                break  # End of columns
-            # Read the metadata name
-            name_bytes = reader.read(name_len)
-            name = name_bytes.decode("utf-8")
-            # Check if the column name matches
-            if name == col_name:
-                col_index = reader.unpack("<q")  # Get the column index
-                break
+    buf_reader = BytesIO(fb_buf)
     
-    if col_index == -1:
+    # Read metadata to find the column
+    while True:
+        # Read metadata length
+        name_len = int.from_bytes(buf_reader.read(4), byteorder='little')
+        if name_len == 0:
+            break  # End of columns
+        # Read metadata name
+        name = buf_reader.read(name_len).decode('utf-8')
+        # Check if the column name matches
+        if name == col_name:
+            # Get the column index
+            col_index = int.from_bytes(buf_reader.read(4), byteorder='little')
+            break
+        else:
+            # Skip dtype
+            buf_reader.seek(1, 1)  # Skip 1 byte for ValueType enum
+    
+    else:
         # Column not found
         return
     
-    # Get the start index of the column values
-    values_start = reader.tell()
+    # Move to the start of the column values
+    buf_reader.seek(col_index)
     
     # Apply map function to each value in the column
-    reader.seek(values_start)  # Reset reader position
     while True:
         # Read the next value
         try:
-            value = reader.unpack("<q")  # Assuming int column
+            value = int.from_bytes(buf_reader.read(8), byteorder='little')  # Assuming int column
         except struct.error:
             break  # End of column values
         # Apply map function
         new_value = map_func(value)
+        # Move back to overwrite the current value
+        buf_reader.seek(-8, 1)
         # Write the new value back to the buffer
-        reader.seek(-8, 1)  # Move back 8 bytes to overwrite the current value
-        reader.pack("<q", new_value)
+        buf_reader.write(new_value.to_bytes(8, byteorder='little'))
