@@ -224,7 +224,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
             if metadata.Dtype() in (ValueType.ValueType().Int, ValueType.ValueType().Float):
                 dtype = '<q' if metadata.Dtype() == ValueType.ValueType().Int else '<d'
                 length = column.IntValuesLength() if metadata.Dtype() == ValueType.ValueType().Int else column.FloatValuesLength()
-                for j in range(length()):
+                for j in range(length):
                     offset = j * 8  # Assuming each value is stored contiguously and starts at index 0
                     value, = struct.unpack_from(dtype, fb_buf, offset)
                     modified_value = map_func(value)
