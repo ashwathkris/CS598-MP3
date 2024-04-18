@@ -169,7 +169,7 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
         @param sum_col_name: column to sum.
     """
     buf = memoryview(fb_bytes)
-    fb_df = DataFrame.DataFrame.GetRootAs(buf, 0)
+    fb_df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
 
     # Initialize variables for column indices and the dictionary for sums
     group_sums = {}
@@ -217,7 +217,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     buf = bytearray(fb_buf) if not isinstance(fb_buf, bytearray) else fb_buf
-    df = DataFrame.GetRootAs(buf, 0)  # Deserialize the root DataFrame from buffer
+    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Deserialize the root DataFrame from buffer
     
     # Iterate through columns to find the one to modify
     for i in range(df.ColumnsLength()):
