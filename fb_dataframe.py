@@ -217,13 +217,13 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     fb_bytes = bytearray(fb_buf)  # Convert memoryview to bytearray for in-place modifications
-    fb_df = DataFrame.GetRootAsDataFrame(fb_bytes, 0)
+    fb_df = DataFrame.DataFrame.GetRootAsDataFrame(fb_bytes, 0)
 
     column = None
     for i in range(fb_df.ColumnsLength()):
         col = fb_df.Columns(i)
         if col.Metadata().Name().decode() == col_name:
-            if col.Metadata().Dtype() in [ValueType.Int, ValueType.Float]:
+            if col.Metadata().Dtype() in [ValueType.ValueType().Int, ValueType.ValueType().Float]:
                 column = col
                 break
 
@@ -231,7 +231,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         print("Column not found or not a numeric type.")
         return  # Early exit if column is not found or is of an incorrect type
 
-    if column.Metadata().Dtype() == ValueType.Int:
+    if column.Metadata().Dtype() == ValueType.ValueType().Int:
         offset_base = column._tab.Vector(column._tab.Offset(6))
         num_elements = column.IntValuesLength()
         for j in range(num_elements):
@@ -240,7 +240,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
             new_value = map_func(original_value)
             fb_bytes[offset:offset + 8] = struct.pack('<q', new_value)
 
-    elif column.Metadata().Dtype() == ValueType.Float:
+    elif column.Metadata().Dtype() == ValueType.ValueType().Float:
         offset_base = column._tab.Vector(column._tab.Offset(8))
         num_elements = column.FloatValuesLength()
         for j in range(num_elements):
