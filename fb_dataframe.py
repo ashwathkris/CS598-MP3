@@ -216,34 +216,28 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = bytearray(fb_buf) if not isinstance(fb_buf, bytearray) else fb_buf
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Deserialize the root DataFrame from buffer
+    buf = bytearray(fb_buf)  # Ensure the buffer is mutable
+    df = DataFrame.GetRootAsDataFrame(buf, 0)  # Deserialize the DataFrame from the buffer
     
-    # Iterate through columns to find the one to modify
+    # Iterate through columns to find the target numeric column
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
         if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
-            # Determine the value type and prepare data access parameters
-            value_size = 8  # both int64 and float64 are 8 bytes
-            if metadata.Dtype() == ValueType.ValueType().Int:
-                unpack_format = '<q'  # Little-endian int64
-                values = column.IntValues
-                values_length = column.IntValuesLength
-            elif metadata.Dtype() == ValueType.ValueType().Float:
-                unpack_format = '<d'  # Little-endian float64
-                values = column.FloatValues
-                values_length = column.FloatValuesLength
-            
+            value_type = metadata.Dtype()
+            value_size = 8  # Size for both int64 and float64
+            unpack_format = '<q' if value_type == ValueType.Int else '<d'  # Format for unpacking ints or floats
+
+            # Get the column's value vector
+            values_func = column.IntValues if value_type == ValueType.ValueType().Int else column.FloatValues
+            values_length = column.IntValuesLength() if value_type == ValueType.ValueType().Int else column.FloatValuesLength()
+
             # Modify each element in the vector
-            for j in range(values_length()):
-                value_index = values(j)
-                element_offset = value_index.Start()  # Assume Start() gives the byte offset
+            for j in range(values_length):
+                element_offset = j * value_size  # Calculate the offset for each element
                 value, = struct.unpack_from(unpack_format, buf, element_offset)
                 new_value = map_func(value)
                 struct.pack_into(unpack_format, buf, element_offset, new_value)
-            
-            # Update the original buffer if necessary
-            fb_buf[:] = buf
-            break
     
+    # Update the original buffer with modified data
+    fb_buf[:] = buf
