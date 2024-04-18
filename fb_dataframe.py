@@ -235,5 +235,6 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
                 values = col.FloatValuesAsNumpy().copy()  # Create a writable copy
                 for j in range(len(values)):
                     values[j] = map_func(values[j])
+            fb_buf = values
             break
     
