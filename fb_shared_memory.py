@@ -1,4 +1,5 @@
 import dill
+import json
 import hashlib
 import pandas as pd
 import types
@@ -23,7 +24,19 @@ class FbSharedMemory:
             # Add more initialization steps if needed here...
         self.offset = 0
         self.name_to_offset = {}
+        self.load_mapping()
         # Add other class members you need here...
+
+    def save_mapping(self):
+        with open('name_to_offset.json', 'w') as f:
+            json.dump(self.name_to_offset, f)
+
+    def load_mapping(self):
+        try:
+            with open('name_to_offset.json', 'r') as f:
+                self.name_to_offset = json.load(f)
+        except FileNotFoundError:
+            self.name_to_offset = {}
 
     def add_dataframe(self, name: str, df: pd.DataFrame) -> None:
         """
@@ -39,19 +52,17 @@ class FbSharedMemory:
         
         fb_data = to_flatbuffer(df)
         fb_size = len(fb_data)
-        total_size = 8 + fb_size  # Includes size for the length prefix
+        total_size = 4 + fb_size  # Include size for length prefix
 
         if self.offset + total_size > self.df_shared_memory.size:
             raise MemoryError("Not enough shared memory available")
 
-        # Write the size of the FlatBuffer at the current offset
         struct.pack_into('I', self.df_shared_memory.buf, self.offset, fb_size)
-        # Write the actual FlatBuffer data
         self.df_shared_memory.buf[self.offset+4:self.offset+4+fb_size] = fb_data
-        
-        # Update the mapping from name to offset
+
         self.name_to_offset[name] = self.offset
         self.offset += total_size
+        self.save_mapping()
 
 
     def _get_fb_buf(self, df_name: str) -> memoryview:
@@ -109,5 +120,6 @@ class FbSharedMemory:
         """
         try:
             self.df_shared_memory.close()
+            self.df_shared_memory.unlink()
         except:
             pass
