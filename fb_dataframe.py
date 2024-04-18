@@ -217,7 +217,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     buf = bytearray(fb_buf)  # Ensure the buffer is mutable
-    df = DataFrame.GetRootAsDataFrame(buf, 0)  # Deserialize the DataFrame from the buffer
+    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Deserialize the DataFrame from the buffer
     
     # Iterate through columns to find the target numeric column
     for i in range(df.ColumnsLength()):
