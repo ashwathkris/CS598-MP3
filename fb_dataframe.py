@@ -236,7 +236,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
 
             # Rebuild the DataFrame with updated columns
             DataFrame.Start(builder)
-            DataFrame.AddColumns(builder, builder.CreateVector([new_column]))
+            DataFrame.AddColumns(builder, builder.CreateByteVector([new_column]))
             df_data = DataFrame.End(builder)
 
             builder.Finish(df_data)
