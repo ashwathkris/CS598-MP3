@@ -183,23 +183,23 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     buf = bytearray(fb_buf)  # Convert memoryview to mutable bytearray for in-place updates
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Use the correct method to get root from your schema
+    df = DataFrame.GetRootAsDataFrame(buf, 0)  # Use the correct method to get root from your schema
     
     # Iterate through columns to find the one to modify
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
-        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
-            if metadata.Dtype() == ValueType.ValueType().Int:
+        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+            if metadata.Dtype() == ValueType.Int:
                 value_size = 8  # size of int64
                 unpack_format = '<q'  # Little-endian int64
-            elif metadata.Dtype() == ValueType.ValueType().Float:
+                start_offset = column.IntValues(0)  # Get the start offset of integer values
+                num_elements = column.IntValuesLength()  # Get the length of integer values
+            elif metadata.Dtype() == ValueType.Float:
                 value_size = 8  # size of float64
                 unpack_format = '<d'  # Little-endian float64
-            
-            # Assuming the vector starts directly at the offset
-            start_offset = column.StartIntValuesVector() if metadata.Dtype() == ValueType.ValueType().Int else column.StartFloatValuesVector()
-            num_elements = column.IntValuesLength() if metadata.Dtype() == ValueType.ValueType().Int else column.FloatValuesLength()
+                start_offset = column.FloatValues(0)  # Get the start offset of float values
+                num_elements = column.FloatValuesLength()  # Get the length of float values
 
             # Modify each element in the vector
             for j in range(num_elements):
