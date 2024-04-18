@@ -187,13 +187,18 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     num_columns = df.ColumnsLength()
 
     builder = flatbuffers.Builder(1024)
+    
+    # Pre-create any strings you might need
+    name_offsets = {}
+    for i in range(num_columns):
+        column = df.Columns(i)
+        metadata = column.Metadata()
+        name_offsets[metadata.Name().decode()] = builder.CreateString(metadata.Name().decode())
 
-    modified = False
     for i in range(num_columns):
         column = df.Columns(i)
         metadata = column.Metadata()
         if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
-            # Prepare new values
             new_values = []
             data_type = metadata.Dtype()
             if data_type == ValueType.ValueType().Int:
@@ -217,8 +222,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
 
             # Build metadata and column objects properly
             Metadata.Start(builder)
-            name_offset = builder.CreateString(metadata.Name().decode())
-            Metadata.AddName(builder, name_offset)
+            Metadata.AddName(builder, name_offsets[metadata.Name().decode()])
             Metadata.AddDtype(builder, data_type)
             meta = Metadata.End(builder)
 
@@ -237,7 +241,6 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
 
             builder.Finish(df_data)
             fb_buf[:] = builder.Output()  # Update the original buffer
-            modified = True
             break  # Exit the loop as we've done the necessary modification
 
     if not modified:
