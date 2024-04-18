@@ -191,16 +191,16 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     for i in range(num_columns):
         column = df.Columns(i)
         metadata = column.Metadata()
-        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
             new_values = []
-            if metadata.Dtype() == ValueType.Int:
+            if metadata.Dtype() == ValueType.ValueType().Int:
                 for j in range(column.IntValuesLength()):
                     new_values.append(map_func(column.IntValues(j)))
-            elif metadata.Dtype() == ValueType.Float:
+            elif metadata.Dtype() == ValueType.ValueType().Float:
                 for j in range(column.FloatValuesLength()):
                     new_values.append(map_func(column.FloatValues(j)))
 
-            if metadata.Dtype() == ValueType.Int:
+            if metadata.Dtype() == ValueType.ValueType().Int:
                 Column.StartIntValuesVector(builder, len(new_values))
                 for value in reversed(new_values):
                     builder.PrependInt64(value)
@@ -216,7 +216,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
             Metadata.AddDtype(builder, metadata.Dtype())
             meta = Metadata.End(builder)
             Column.AddMetadata(builder, meta)
-            if metadata.Dtype() == ValueType.Int:
+            if metadata.Dtype() == ValueType.ValueType().Int:
                 Column.AddIntValues(builder, values_vector)
             else:
                 Column.AddFloatValues(builder, values_vector)
