@@ -183,7 +183,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     buf = bytearray(fb_buf)  # Copy to a mutable bytearray
-    df = DataFrame.GetRootAs(buf, 0)
+    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
     num_columns = df.ColumnsLength()
 
     builder = flatbuffers.Builder(1024)
