@@ -150,6 +150,46 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param col_name: name of the numeric column to apply map_func to.
         @param map_func: function to apply to elements in the numeric column.
     """
-    # YOUR CODE HERE...
+    # Access the buffer using the FlatBuffers builder
+    buf = bytearray(fb_buf)
+    builder = flatbuffers.Builder(0)
+    builder.Finish(buf)
+
+    # Get the DataFrame root from the buffer
+    df = DataFrame.DataFrame.GetRootAs(buf, 0)
+    num_columns = df.ColumnsLength()
+
+    # Iterate through all columns in the DataFrame
+    for i in range(num_columns):
+        column = df.Columns(i)
+        metadata = column.Metadata()
+        dtype = metadata.Dtype()
+
+        # Check for column name and type
+        if metadata.Name().decode() == col_name:
+            if dtype == ValueType.Int:
+                # Process int64 values
+                int_values = [column.IntValues(j) for j in range(column.IntValuesLength())]
+                mapped_values = list(map(map_func, int_values))
+                # Modify the values in the buffer
+                for j, value in enumerate(mapped_values):
+                    builder.PrependInt64(value)
+                # Update the vector with new values
+                values = builder.EndVector(len(mapped_values))
+                Column.AddIntValues(builder, values)
+                
+            elif dtype == ValueType.Float:
+                # Process float64 values
+                float_values = [column.FloatValues(j) for j in range(column.FloatValuesLength())]
+                mapped_values = list(map(map_func, float_values))
+                # Modify the values in the buffer
+                for j, value in enumerate(mapped_values):
+                    builder.PrependFloat64(value)
+                # Update the vector with new values
+                values = builder.EndVector(len(mapped_values))
+                Column.AddFloatValues(builder, values)
+
+            # No action for string columns as per specification
+            break 
     pass
     
