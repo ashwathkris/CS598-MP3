@@ -216,32 +216,39 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = fb_buf.tobytes()
-    data_frame = DataFrame.GetRootAs(buf, 0)
+    fb_bytes = bytearray(fb_buf)  # Convert memoryview to bytearray for in-place modifications
+    fb_df = DataFrame.GetRootAsDataFrame(fb_bytes, 0)
 
-    # Iterate over columns to find the specified column
-    for i in range(data_frame.ColumnsLength()):
-        column = data_frame.Columns(i)
-        meta = column.Metadata()
+    column = None
+    for i in range(fb_df.ColumnsLength()):
+        col = fb_df.Columns(i)
+        if col.Metadata().Name().decode() == col_name:
+            if col.Metadata().Dtype() in [ValueType.Int, ValueType.Float]:
+                column = col
+                break
 
-        # Check if this is the correct column and if it is numeric
-        if meta.Name().decode() == col_name and meta.Dtype() in (0, 1):  # 0 for Int, 1 for Float
-            # Depending on the data type, get the numpy array
-            if meta.Dtype() == 0:  # Int column
-                values = column.IntValuesAsNumpy()
-            else:  # Float column
-                values = column.FloatValuesAsNumpy()
+    if not column:
+        print("Column not found or not a numeric type.")
+        return  # Early exit if column is not found or is of an incorrect type
 
-            # Apply the mapping function
-            new_values = map_func(values)
+    if column.Metadata().Dtype() == ValueType.Int:
+        offset_base = column._tab.Vector(column._tab.Offset(6))
+        num_elements = column.IntValuesLength()
+        for j in range(num_elements):
+            offset = offset_base + j * 8
+            original_value = struct.unpack('<q', fb_bytes[offset:offset + 8])[0]
+            new_value = map_func(original_value)
+            fb_bytes[offset:offset + 8] = struct.pack('<q', new_value)
 
-            # Write the modified values back into the numpy array
-            values[:] = new_values
+    elif column.Metadata().Dtype() == ValueType.Float:
+        offset_base = column._tab.Vector(column._tab.Offset(8))
+        num_elements = column.FloatValuesLength()
+        for j in range(num_elements):
+            offset = offset_base + j * 8
+            original_value = struct.unpack('<d', fb_bytes[offset:offset + 8])[0]
+            new_value = map_func(original_value)
+            fb_bytes[offset:offset + 8] = struct.pack('<d', new_value)
 
-            # Assuming you can't directly manipulate buffer offsets, this step might need more handling:
-            # Normally, you'd need to calculate the byte offset and replace the segment in `fb_buf`
-            # Here, the data is updated in-place in the numpy array
-            break
-    else:
-        print("Column not found or is not a numeric type.")
+    # Replace the original memoryview with the modified bytearray
+    fb_buf[:] = fb_bytes 
     
