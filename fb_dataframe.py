@@ -198,7 +198,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
                 unpack_format = '<d'  # Little-endian float64
             
             # Assuming the vector starts directly at the offset
-            start_offset = column.IntValuesStart() if metadata.Dtype() == ValueType.ValueType().Int else column.FloatValuesStart()
+            start_offset = column.StartIntValuesVector() if metadata.Dtype() == ValueType.ValueType().Int else column.StartFloatValuesVector()
             num_elements = column.IntValuesLength() if metadata.Dtype() == ValueType.ValueType().Int else column.FloatValuesLength()
 
             # Modify each element in the vector
