@@ -183,7 +183,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     """
     # Access the buffer using the FlatBuffers builder
     buf = bytearray(fb_buf)  # Convert memoryview to mutable bytearray for in-place updates
-    df = DataFrame.GetRootAsDataFrame(buf, 0)  # Use the correct method to get root from your schema
+    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Use the correct method to get root from your schema
     
     # Iterate through columns to find the one to modify
     for i in range(df.ColumnsLength()):
