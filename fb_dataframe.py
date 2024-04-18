@@ -216,34 +216,34 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param map_func: function to apply to elements in the numeric column.
     """
     # Access the buffer using the FlatBuffers builder
-    buf = bytearray(fb_buf)  # Convert memoryview to mutable bytearray for in-place updates
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)  # Use the correct method to get root from your schema
+    buf = bytearray(fb_buf) if not isinstance(fb_buf, bytearray) else fb_buf
+    df = DataFrame.GetRootAs(buf, 0)  # Deserialize the root DataFrame from buffer
     
     # Iterate through columns to find the one to modify
     for i in range(df.ColumnsLength()):
         column = df.Columns(i)
         metadata = column.Metadata()
-        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
-            if metadata.Dtype() == ValueType.ValueType().Int:
-                value_size = 8  # size of int64
+        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+            # Determine the value type and prepare data access parameters
+            value_size = 8  # both int64 and float64 are 8 bytes
+            if metadata.Dtype() == ValueType.Int:
                 unpack_format = '<q'  # Little-endian int64
-                start_offset = column.IntValues(0)  # Get the start offset of integer values
-                num_elements = column.IntValuesLength()  # Get the length of integer values
-            elif metadata.Dtype() == ValueType.ValueType().Float:
-                value_size = 8  # size of float64
+                values = column.IntValues
+                values_length = column.IntValuesLength
+            elif metadata.Dtype() == ValueType.Float:
                 unpack_format = '<d'  # Little-endian float64
-                start_offset = column.FloatValues(0)  # Get the start offset of float values
-                num_elements = column.FloatValuesLength()  # Get the length of float values
-
+                values = column.FloatValues
+                values_length = column.FloatValuesLength
+            
             # Modify each element in the vector
-            for j in range(num_elements):
-                element_offset = start_offset + j * value_size
-                # Unpack the value, apply the function, and repack it
+            for j in range(values_length()):
+                value_index = values(j)
+                element_offset = value_index.Start()  # Assume Start() gives the byte offset
                 value, = struct.unpack_from(unpack_format, buf, element_offset)
                 new_value = map_func(value)
                 struct.pack_into(unpack_format, buf, element_offset, new_value)
-                
-            # No need to return anything as the buffer is modified in place
-            fb_buf[:] = buf  # Ensure the original memoryview is updated
+            
+            # Update the original buffer if necessary
+            fb_buf[:] = buf
             break
     
