@@ -192,24 +192,24 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
     for i in range(num_columns):
         column = df.Columns(i)
         metadata = column.Metadata()
-        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.Int, ValueType.Float}:
+        if metadata.Name().decode() == col_name and metadata.Dtype() in {ValueType.ValueType().Int, ValueType.ValueType().Float}:
             # Prepare new values
             new_values = []
             data_type = metadata.Dtype()
-            if data_type == ValueType.Int:
+            if data_type == ValueType.ValueType().Int:
                 for j in range(column.IntValuesLength()):
                     new_values.append(map_func(column.IntValues(j)))
-            elif data_type == ValueType.Float:
+            elif data_type == ValueType.ValueType().Float:
                 for j in range(column.FloatValuesLength()):
                     new_values.append(map_func(column.FloatValues(j)))
 
             # Rebuild the vector
-            if data_type == ValueType.Int:
+            if data_type == ValueType.ValueType().Int:
                 Column.StartIntValuesVector(builder, len(new_values))
             else:
                 Column.StartFloatValuesVector(builder, len(new_values))
             for value in reversed(new_values):
-                if data_type == ValueType.Int:
+                if data_type == ValueType.ValueType().Int:
                     builder.PrependInt64(value)
                 else:
                     builder.PrependFloat64(value)
@@ -224,7 +224,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
 
             Column.Start(builder)
             Column.AddMetadata(builder, meta)
-            if data_type == ValueType.Int:
+            if data_type == ValueType.ValueType().Int:
                 Column.AddIntValues(builder, values_vector)
             else:
                 Column.AddFloatValues(builder, values_vector)
