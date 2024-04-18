@@ -2,6 +2,7 @@ import dill
 import hashlib
 import pandas as pd
 import types
+import struct
 
 from multiprocessing import shared_memory
 
@@ -20,7 +21,8 @@ class FbSharedMemory:
             self.df_shared_memory = shared_memory.SharedMemory(name = "CS598", create=True, size=200000000)
 
             # Add more initialization steps if needed here...
-
+        self.offset = 0
+        self.name_to_offset = {}
         # Add other class members you need here...
 
     def add_dataframe(self, name: str, df: pd.DataFrame) -> None:
@@ -31,6 +33,25 @@ class FbSharedMemory:
             @param df: the dataframe to add to shared memory.
         """
         # YOUR CODE HERE...
+        if name in self.name_to_offset:
+            print(f"Dataframe with name {name} already exists.")
+            return
+        
+        fb_data = to_flatbuffer(df)
+        fb_size = len(fb_data)
+        total_size = 8 + fb_size  # Includes size for the length prefix
+
+        if self.offset + total_size > self.df_shared_memory.size:
+            raise MemoryError("Not enough shared memory available")
+
+        # Write the size of the FlatBuffer at the current offset
+        struct.pack_into('I', self.df_shared_memory.buf, self.offset, fb_size)
+        # Write the actual FlatBuffer data
+        self.df_shared_memory.buf[self.offset+4:self.offset+4+fb_size] = fb_data
+        
+        # Update the mapping from name to offset
+        self.name_to_offset[name] = self.offset
+        self.offset += total_size
 
 
     def _get_fb_buf(self, df_name: str) -> memoryview:
@@ -40,7 +61,12 @@ class FbSharedMemory:
 
             @param df_name: name of the Dataframe.
         """
-        return self.df_shared_memory.buf  # REPLACE THIS WITH YOUR CODE...
+        if df_name not in self.name_to_offset:
+            raise KeyError(f"Dataframe {df_name} not found in shared memory")
+        
+        offset = self.name_to_offset[df_name]
+        size = struct.unpack_from('I', self.df_shared_memory.buf, offset)[0]
+        return memoryview(self.df_shared_memory.buf[offset+4:offset+4+size])
 
 
     def dataframe_head(self, df_name: str, rows: int = 5) -> pd.DataFrame:
