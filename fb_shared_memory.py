@@ -20,19 +20,15 @@ class FbSharedMemory:
             # Add more initialization steps if needed here...
         self.offset = 0
         self.name_to_offset = {}
-        self.load_mapping()
-        # Add other class members you need here...
-
-    def save_mapping(self):
-        with open('name_to_offset.json', 'w') as f:
-            json.dump(self.name_to_offset, f)
-
-    def load_mapping(self):
         try:
             with open('name_to_offset.json', 'r') as f:
                 self.name_to_offset = json.load(f)
         except FileNotFoundError:
             self.name_to_offset = {}
+
+    def save_mapping(self):
+        with open('name_to_offset.json', 'w') as f:
+            json.dump(self.name_to_offset, f)
 
     def add_dataframe(self, name: str, df: pd.DataFrame) -> None:
         """
