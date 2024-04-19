@@ -1,18 +1,18 @@
 namespace DataFrame;
 enum ValueType: byte {
-  Int,
-  Float,
-  String
+	Int,
+	Float,
+	String
 }
 table Metadata {
-  name:string;
-  dtype:ValueType;
+	name:string;
+	dtype:ValueType;
 }
 table Column {
-  metadata: Metadata;
-  int_values: [int64];
-  float_values: [float64];
-  string_values: [string];
+	metadata: Metadata;
+	intval: [int64];
+	floatval: [float64];
+	stringval: [string];
 }
 table DataFrame {
   metadata: string;

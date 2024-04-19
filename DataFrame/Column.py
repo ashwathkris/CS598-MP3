@@ -36,7 +36,7 @@ class Column(object):
         return None
 
     # Column
-    def IntValues(self, j):
+    def Intval(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             a = self._tab.Vector(o)
@@ -44,26 +44,26 @@ class Column(object):
         return 0
 
     # Column
-    def IntValuesAsNumpy(self):
+    def IntvalAsNumpy(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Int64Flags, o)
         return 0
 
     # Column
-    def IntValuesLength(self):
+    def IntvalLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Column
-    def IntValuesIsNone(self):
+    def IntvalIsNone(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
     # Column
-    def FloatValues(self, j):
+    def Floatval(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             a = self._tab.Vector(o)
@@ -71,26 +71,26 @@ class Column(object):
         return 0
 
     # Column
-    def FloatValuesAsNumpy(self):
+    def FloatvalAsNumpy(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
         return 0
 
     # Column
-    def FloatValuesLength(self):
+    def FloatvalLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Column
-    def FloatValuesIsNone(self):
+    def FloatvalIsNone(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
     # Column
-    def StringValues(self, j):
+    def Stringval(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             a = self._tab.Vector(o)
@@ -98,14 +98,14 @@ class Column(object):
         return ""
 
     # Column
-    def StringValuesLength(self):
+    def StringvalLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Column
-    def StringValuesIsNone(self):
+    def StringvalIsNone(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
@@ -121,41 +121,41 @@ def ColumnAddMetadata(builder, metadata):
 def AddMetadata(builder, metadata):
     ColumnAddMetadata(builder, metadata)
 
-def ColumnAddIntValues(builder, intValues):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(intValues), 0)
+def ColumnAddIntval(builder, intval):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(intval), 0)
 
-def AddIntValues(builder, intValues):
-    ColumnAddIntValues(builder, intValues)
+def AddIntval(builder, intval):
+    ColumnAddIntval(builder, intval)
 
-def ColumnStartIntValuesVector(builder, numElems):
+def ColumnStartIntvalVector(builder, numElems):
     return builder.StartVector(8, numElems, 8)
 
-def StartIntValuesVector(builder, numElems):
-    return ColumnStartIntValuesVector(builder, numElems)
+def StartIntvalVector(builder, numElems):
+    return ColumnStartIntvalVector(builder, numElems)
 
-def ColumnAddFloatValues(builder, floatValues):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(floatValues), 0)
+def ColumnAddFloatval(builder, floatval):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(floatval), 0)
 
-def AddFloatValues(builder, floatValues):
-    ColumnAddFloatValues(builder, floatValues)
+def AddFloatval(builder, floatval):
+    ColumnAddFloatval(builder, floatval)
 
-def ColumnStartFloatValuesVector(builder, numElems):
+def ColumnStartFloatvalVector(builder, numElems):
     return builder.StartVector(8, numElems, 8)
 
-def StartFloatValuesVector(builder, numElems):
-    return ColumnStartFloatValuesVector(builder, numElems)
+def StartFloatvalVector(builder, numElems):
+    return ColumnStartFloatvalVector(builder, numElems)
 
-def ColumnAddStringValues(builder, stringValues):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(stringValues), 0)
+def ColumnAddStringval(builder, stringval):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(stringval), 0)
 
-def AddStringValues(builder, stringValues):
-    ColumnAddStringValues(builder, stringValues)
+def AddStringval(builder, stringval):
+    ColumnAddStringval(builder, stringval)
 
-def ColumnStartStringValuesVector(builder, numElems):
+def ColumnStartStringvalVector(builder, numElems):
     return builder.StartVector(4, numElems, 4)
 
-def StartStringValuesVector(builder, numElems):
-    return ColumnStartStringValuesVector(builder, numElems)
+def StartStringvalVector(builder, numElems):
+    return ColumnStartStringvalVector(builder, numElems)
 
 def ColumnEnd(builder):
     return builder.EndObject()
