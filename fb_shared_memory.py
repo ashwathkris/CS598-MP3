@@ -33,17 +33,23 @@ class FbSharedMemory:
             @param name: name of the dataframe.
             @param df: the dataframe to add to shared memory.
         """
-        if(name in self.startdict):
+        # YOUR CODE HERE...
+        if name in self.startdict:
+            print(f"Dataframe with name {name} already exists.")
             return
-        x=to_flatbuffer(df)
-        s=len(x)
-        tot=4+s
-        if(self.start+tot>self.df_shared_memory.size):
-            return
-        struct.pack_into('I', self.df_shared_memory.buf, self.start, s)
-        self.df_shared_memory.buf[self.start+4:self.start+4+s]=x
-        self.startdict[name]=self.start
-        self.start+=tot
+        
+        fb_data = to_flatbuffer(df)
+        fb_size = len(fb_data)
+        total_size = 4 + fb_size  # Include size for length prefix
+
+        if self.start + total_size > self.df_shared_memory.size:
+            raise MemoryError("Not enough shared memory available")
+
+        struct.pack_into('I', self.df_shared_memory.buf, self.start, fb_size)
+        self.df_shared_memory.buf[self.start+4:self.start+4+fb_size] = fb_data
+
+        self.startdict[name] = self.start
+        self.start += total_size
         with open('startdict.json', 'w') as f:
             json.dump(self.startdict, f)
 
