@@ -113,7 +113,7 @@ def fb_dataframe_head(fb_bytes: bytes, rows: int = 5) -> pd.DataFrame:
     buf=flatbuffers.Builder(0)
     buf.Bytes=fb_bytes
     df=DataFrame.DataFrame.GetRootAsDataFrame(buf.Bytes,0)
-    columns=dict()
+    columns = dict()
     for i in range(df.ColumnsLength()):
         col=df.Columns(i)
         m=col.Metadata()
@@ -152,8 +152,12 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
     """
     buf = memoryview(fb_bytes)
     fb_df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
+
+    # Initialize variables for column indices and the dictionary for sums
     group_sums = dict()
     group_col_index = sum_col_index = -1
+
+    # Determine the column indices based on names
     for i in range(fb_df.ColumnsLength()):
         col = fb_df.Columns(i)
         col_name = col.Metadata().Name().decode()
@@ -162,11 +166,15 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
         elif col_name == sum_col_name:
             sum_col_index = i
             if group_col_index != -1:
-                break
+                break  # Exit early if both columns are found
+
     if group_col_index == -1 or sum_col_index == -1:
-        return
+        raise ValueError("Specified columns not found in the DataFrame.")
+
     group_col = fb_df.Columns(group_col_index)
     sum_col = fb_df.Columns(sum_col_index)
+
+    # Process the columns directly for grouping and summing
     for j in range(group_col.IntValuesLength()):
         group_value = group_col.IntValues(j)
         sum_value = sum_col.IntValues(j)
