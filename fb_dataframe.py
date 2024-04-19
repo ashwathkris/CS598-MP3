@@ -45,7 +45,7 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
     columns = list()
     for dtype, metadata, vvec in reversed(list(zip(vecs_dtype ,metalist, vecs))):
         if(dtype == 'int64'):
-            Column.StartIntValVector(builder, len(vvec))
+            Column.StartIntvalVector(builder, len(vvec))
             for value in reversed(vvec):
                 builder.PrependInt64(value)
             values = builder.EndVector(len(vvec))
@@ -57,10 +57,10 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             meta = Metadata.End(builder)
             Column.Start(builder)            
             Column.AddMetadata(builder, meta)
-            Column.AddIntVal(builder, values)
+            Column.AddIntval(builder, values)
             columns.append(Column.End(builder))
         elif(dtype == 'float64'):
-            Column.StartFloatValVector(builder, len(vvec))
+            Column.StartFloatvalVector(builder, len(vvec))
             for value in reversed(vvec):
                 builder.PrependFloat64(value)
             values = builder.EndVector(len(vvec))
@@ -72,11 +72,11 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             meta = Metadata.End(builder)
             Column.Start(builder)            
             Column.AddMetadata(builder, meta)
-            Column.AddFloatVal(builder, values)
+            Column.AddFloatval(builder, values)
             columns.append(Column.End(builder))
         elif(dtype == 'object'):
             str_offsets = [builder.CreateString(str(value)) for value in vvec]
-            Column.StartStringValVector(builder, len(vvec))
+            Column.StartStringvalVector(builder, len(vvec))
             for offset in reversed(str_offsets):
                 builder.PrependUOffsetTRelative(offset)
             values = builder.EndVector(len(vvec))
@@ -88,7 +88,7 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             meta = Metadata.End(builder)
             Column.Start(builder)            
             Column.AddMetadata(builder, meta)
-            Column.AddStringVal(builder, values)
+            Column.AddStringval(builder, values)
             columns.append(Column.End(builder))
     DataFrame.StartColumnsVector(builder, len(columns))
     for c in columns:
@@ -120,21 +120,21 @@ def fb_dataframe_head(fb_bytes: bytes, rows: int = 5) -> pd.DataFrame:
         c=m.Name().decode()
         if(m.Dtype() == ValueType.ValueType().Int):
             values = []
-            max_index = min(col.IntValLength(), rows)
+            max_index = min(col.IntvalLength(), rows)
             for j in range(max_index):
-                value = col.IntVal(j)
+                value = col.Intval(j)
                 values.append(value)
         elif(m.Dtype() == ValueType.ValueType().Float):
             values = []
-            max_index = min(col.FloatValLength(), rows)
+            max_index = min(col.FloatvalLength(), rows)
             for j in range(max_index):
-                value = col.FloatVal(j)
+                value = col.Floatval(j)
                 values.append(value)
         elif(m.Dtype() == ValueType.ValueType().String):
             values = []
-            max_index = min(col.StringValLength(), rows)
+            max_index = min(col.StringvalLength(), rows)
             for j in range(max_index):
-                value = col.StringVal(j).decode()
+                value = col.Stringval(j).decode()
                 values.append(value)
         columns[c] = values
     res=pd.DataFrame(columns)
@@ -168,9 +168,9 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
         return
     col=fb_df.Columns(grpidx)
     s=fb_df.Columns(colidx)
-    for j in range(col.IntValLength()):
-        val=col.IntVal(j)
-        sum_value=s.IntVal(j)
+    for j in range(col.IntvalLength()):
+        val=col.Intval(j)
+        sum_value=s.Intval(j)
         sums[val]=sums.get(val,0)+sum_value
     grp=sorted(sums.items())
     res=pd.DataFrame(grp, columns=[grouping_col_name, sum_col_name])
@@ -201,7 +201,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         return
     if(ValueType.ValueType().Int==column.Metadata().Dtype()):
         start=column._tab.Vector(column._tab.Offset(6))
-        n=column.IntValLength()
+        n=column.IntvalLength()
         for j in range(n):
             offset=start+j*8
             og=struct.unpack('<q', fb_bytes[offset:offset + 8])[0]
@@ -209,7 +209,7 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
             fb_bytes[offset:offset+8] = struct.pack('<q', val)
     elif(column.Metadata().Dtype() == ValueType.ValueType().Float):
         start=column._tab.Vector(column._tab.Offset(8))
-        n=column.FloatValLength()
+        n=column.FloatvalLength()
         for j in range(n):
             offset=start + j * 8
             og=struct.unpack('<d', fb_bytes[offset:offset + 8])[0]
