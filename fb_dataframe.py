@@ -64,7 +64,6 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             for value in reversed(vvec):
                 builder.PrependFloat64(value)
             values = builder.EndVector(len(vvec))
-            
             col_name = builder.CreateString(metadata[0])
             value_type = metadata[1]
             Metadata.Start(builder)
@@ -81,7 +80,6 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             for offset in reversed(str_offsets):
                 builder.PrependUOffsetTRelative(offset)
             values = builder.EndVector(len(vvec))
-            
             col_name = builder.CreateString(metadata[0])
             value_type = metadata[1]
             Metadata.Start(builder)
@@ -103,7 +101,6 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
     builder.Finish(df_data)
     return builder.Output()
 
-
 def fb_dataframe_head(fb_bytes: bytes, rows: int = 5) -> pd.DataFrame:
     """
         Returns the first n rows of the Flatbuffer Dataframe as a Pandas Dataframe
@@ -115,36 +112,33 @@ def fb_dataframe_head(fb_bytes: bytes, rows: int = 5) -> pd.DataFrame:
     """
     buf = flatbuffers.Builder(0)
     buf.Bytes = fb_bytes
-
-    # Get the DataFrame from bytes
     df = DataFrame.DataFrame.GetRootAsDataFrame(buf.Bytes, 0)
-
-    # Prepare to collect columns data
-    columns = {}
-
-    # Iterate over columns
+    columns = dict()
     for i in range(df.ColumnsLength()):
-        col = df.Columns(i)
-        meta = col.Metadata()
-        col_name = meta.Name().decode()
-
-        if meta.Dtype() == ValueType.ValueType().Int:
-            # Extract integer values
-            values = [col.IntValues(j) for j in range(min(col.IntValuesLength(), rows))]
-        elif meta.Dtype() == ValueType.ValueType().Float:
-            # Extract float values
-            values = [col.FloatValues(j) for j in range(min(col.FloatValuesLength(), rows))]
-        elif meta.Dtype() == ValueType.ValueType().String:
-            # Extract string values
-            values = [col.StringValues(j).decode() for j in range(min(col.StringValuesLength(), rows))]
-
-        # Store column in dictionary
-        columns[col_name] = values
-
-    # Create a DataFrame from the dictionary
-    result_df = pd.DataFrame(columns)
-
-    return result_df
+        col=df.Columns(i)
+        m=col.Metadata()
+        c=m.Name().decode()
+        if(m.Dtype() == ValueType.ValueType().Int):
+            values = []
+            max_index = min(col.IntValuesLength(), rows)
+            for j in range(max_index):
+                value = col.IntValues(j)
+                values.append(value)
+        elif(m.Dtype() == ValueType.ValueType().Float):
+            values = []
+            max_index = min(col.FloatValuesLength(), rows)
+            for j in range(max_index):
+                value = col.FloatValues(j)
+                values.append(value)
+        elif(m.Dtype() == ValueType.ValueType().String):
+            values = []
+            max_index = min(col.StringValuesLength(), rows)
+            for j in range(max_index):
+                value = col.StringValues(j).decode()
+                values.append(value)
+        columns[c] = values
+    res=pd.DataFrame(columns)
+    return res
 
 
 def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_name: str) -> pd.DataFrame:
@@ -160,7 +154,7 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
     fb_df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
 
     # Initialize variables for column indices and the dictionary for sums
-    group_sums = {}
+    group_sums = dict()
     group_col_index = sum_col_index = -1
 
     # Determine the column indices based on names
