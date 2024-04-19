@@ -14,10 +14,7 @@ class FbSharedMemory:
         try:
             self.df_shared_memory = shared_memory.SharedMemory(name = "CS598")
         except FileNotFoundError:
-            # Shared memory is not created yet, create it with size 200M.
             self.df_shared_memory = shared_memory.SharedMemory(name = "CS598", create=True, size=200000000)
-
-            # Add more initialization steps if needed here...
         self.start = 0
         self.startdict = dict()
         try:
@@ -33,26 +30,19 @@ class FbSharedMemory:
             @param name: name of the dataframe.
             @param df: the dataframe to add to shared memory.
         """
-        # YOUR CODE HERE...
-        if name in self.startdict:
-            print(f"Dataframe with name {name} already exists.")
+        if(name in self.startdict):
             return
-        
-        fb_data = to_flatbuffer(df)
-        fb_size = len(fb_data)
-        total_size = 4 + fb_size  # Include size for length prefix
-
-        if self.start + total_size > self.df_shared_memory.size:
-            raise MemoryError("Not enough shared memory available")
-
-        struct.pack_into('I', self.df_shared_memory.buf, self.start, fb_size)
-        self.df_shared_memory.buf[self.start+4:self.start+4+fb_size] = fb_data
-
-        self.startdict[name] = self.start
-        self.start += total_size
+        x=to_flatbuffer(df)
+        s=len(x)
+        tot=4+s
+        if(self.start+tot>self.df_shared_memory.size):
+            return
+        struct.pack_into('I', self.df_shared_memory.buf, self.start, s)
+        self.df_shared_memory.buf[self.start+4:self.start+4+s]=x
+        self.startdict[name]=self.start
+        self.start+=tot
         with open('startdict.json', 'w') as f:
             json.dump(self.startdict, f)
-
 
     def _get_fb_buf(self, df_name: str) -> memoryview:
         """
@@ -61,13 +51,11 @@ class FbSharedMemory:
 
             @param df_name: name of the Dataframe.
         """
-        if df_name not in self.startdict:
-            raise KeyError(f"Dataframe {df_name} not found in shared memory")
-        
-        start = self.startdict[df_name]
-        size = struct.unpack_from('I', self.df_shared_memory.buf, start)[0]
+        if(df_name not in self.startdict):
+            return None
+        start=self.startdict[df_name]
+        size=struct.unpack_from('I', self.df_shared_memory.buf, start)[0]
         return memoryview(self.df_shared_memory.buf[start+4:start+4+size])
-
 
     def dataframe_head(self, df_name: str, rows: int = 5) -> pd.DataFrame:
         """
