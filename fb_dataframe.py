@@ -150,28 +150,30 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
         @param grouping_col_name: column to group by.
         @param sum_col_name: column to sum.
     """
-    buf=memoryview(fb_bytes)
-    fb_df=DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
-    s=dict()
-    indx = sum_col_index = -1
+    buf = memoryview(fb_bytes)
+    fb_df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
+    group_sums = dict()
+    group_col_index = sum_col_index = -1
     for i in range(fb_df.ColumnsLength()):
         col = fb_df.Columns(i)
         col_name = col.Metadata().Name().decode()
-        if(col_name == grouping_col_name):
-            indx = i
+        if col_name == grouping_col_name:
+            group_col_index = i
         elif col_name == sum_col_name:
             sum_col_index = i
-            if indx != -1:
+            if group_col_index != -1:
                 break
-    if indx == -1 or sum_col_index == -1:
+    if group_col_index == -1 or sum_col_index == -1:
         return
-    group_col = fb_df.Columns(indx)
+    group_col = fb_df.Columns(group_col_index)
     sum_col = fb_df.Columns(sum_col_index)
     for j in range(group_col.IntValuesLength()):
         group_value = group_col.IntValues(j)
         sum_value = sum_col.IntValues(j)
-        s[group_value] = s.get(group_value, 0) + sum_value
-    sorted_groups = sorted(s.items())
+        group_sums[group_value] = group_sums.get(group_value, 0) + sum_value
+
+    # Sort and convert to DataFrame
+    sorted_groups = sorted(group_sums.items())
     result_df = pd.DataFrame(sorted_groups, columns=[grouping_col_name, sum_col_name])
     result_df.set_index(grouping_col_name, inplace=True)
     return result_df
