@@ -110,10 +110,10 @@ def fb_dataframe_head(fb_bytes: bytes, rows: int = 5) -> pd.DataFrame:
         @param fb_bytes: bytes of the Flatbuffer Dataframe.
         @param rows: number of rows to return.
     """
-    buf = flatbuffers.Builder(0)
-    buf.Bytes = fb_bytes
-    df = DataFrame.DataFrame.GetRootAsDataFrame(buf.Bytes, 0)
-    columns = dict()
+    buf=flatbuffers.Builder(0)
+    buf.Bytes=fb_bytes
+    df=DataFrame.DataFrame.GetRootAsDataFrame(buf.Bytes,0)
+    columns=dict()
     for i in range(df.ColumnsLength()):
         col=df.Columns(i)
         m=col.Metadata()
@@ -150,38 +150,28 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
         @param grouping_col_name: column to group by.
         @param sum_col_name: column to sum.
     """
-    buf = memoryview(fb_bytes)
-    fb_df = DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
-
-    # Initialize variables for column indices and the dictionary for sums
-    group_sums = dict()
-    group_col_index = sum_col_index = -1
-
-    # Determine the column indices based on names
+    buf=memoryview(fb_bytes)
+    fb_df=DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
+    s=dict()
+    indx = sum_col_index = -1
     for i in range(fb_df.ColumnsLength()):
         col = fb_df.Columns(i)
         col_name = col.Metadata().Name().decode()
-        if col_name == grouping_col_name:
-            group_col_index = i
-        elif col_name == sum_col_name:
+        if(col_name == grouping_col_name):
+            indx = i
+        elif(col_name == sum_col_name):
             sum_col_index = i
-            if group_col_index != -1:
-                break  # Exit early if both columns are found
-
-    if group_col_index == -1 or sum_col_index == -1:
-        raise ValueError("Specified columns not found in the DataFrame.")
-
-    group_col = fb_df.Columns(group_col_index)
+            if indx != -1:
+                break
+    if(indx == -1 or sum_col_index == -1):
+        return
+    group_col = fb_df.Columns(indx)
     sum_col = fb_df.Columns(sum_col_index)
-
-    # Process the columns directly for grouping and summing
     for j in range(group_col.IntValuesLength()):
         group_value = group_col.IntValues(j)
         sum_value = sum_col.IntValues(j)
-        group_sums[group_value] = group_sums.get(group_value, 0) + sum_value
-
-    # Sort and convert to DataFrame
-    sorted_groups = sorted(group_sums.items())
+        s[group_value] = s.get(group_value, 0) + sum_value
+    sorted_groups = sorted(s.items())
     result_df = pd.DataFrame(sorted_groups, columns=[grouping_col_name, sum_col_name])
     result_df.set_index(grouping_col_name, inplace=True)
     return result_df
