@@ -26,7 +26,7 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
     """
     builder = Builder(1024)
     metadata_string = builder.CreateString("DataFrame Metadata")
-    column_metadata_list=list()
+    metalist=list()
     vecs=list()
     vecs_dtype=list()
     for c,d in df.dtypes.items():
@@ -38,18 +38,17 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             value_type = ValueType.ValueType().String
         else:
             return
-        column_metadata_list.append((c, value_type))
-        column_values = df[c]
-        vecs.append(column_values.tolist())
+        metalist.append((c, value_type))
+        v=df[c]
+        vecs.append(v.tolist())
         vecs_dtype.append(d)
     columns = list()
-    for dtype, metadata, value_vector in reversed(list(zip(vecs_dtype ,column_metadata_list, vecs))):
-        if dtype == 'int64':
-            Column.StartIntValuesVector(builder, len(value_vector))
-            for value in reversed(value_vector):
+    for dtype, metadata, vvec in reversed(list(zip(vecs_dtype ,metalist, vecs))):
+        if(dtype == 'int64'):
+            Column.StartIntValuesVector(builder, len(vvec))
+            for value in reversed(vvec):
                 builder.PrependInt64(value)
-            values = builder.EndVector(len(value_vector))
-
+            values = builder.EndVector(len(vvec))
             col_name = builder.CreateString(metadata[0])
             value_type = metadata[1]
             Metadata.Start(builder)
@@ -60,11 +59,11 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             Column.AddMetadata(builder, meta)
             Column.AddIntValues(builder, values)
             columns.append(Column.End(builder))
-        elif dtype == 'float64':
-            Column.StartFloatValuesVector(builder, len(value_vector))
-            for value in reversed(value_vector):
+        elif(dtype == 'float64'):
+            Column.StartFloatValuesVector(builder, len(vvec))
+            for value in reversed(vvec):
                 builder.PrependFloat64(value)
-            values = builder.EndVector(len(value_vector))
+            values = builder.EndVector(len(vvec))
             
             col_name = builder.CreateString(metadata[0])
             value_type = metadata[1]
@@ -76,12 +75,12 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             Column.AddMetadata(builder, meta)
             Column.AddFloatValues(builder, values)
             columns.append(Column.End(builder))
-        elif dtype == 'object':
-            str_offsets = [builder.CreateString(str(value)) for value in value_vector]
-            Column.StartStringValuesVector(builder, len(value_vector))
+        elif(dtype == 'object'):
+            str_offsets = [builder.CreateString(str(value)) for value in vvec]
+            Column.StartStringValuesVector(builder, len(vvec))
             for offset in reversed(str_offsets):
                 builder.PrependUOffsetTRelative(offset)
-            values = builder.EndVector(len(value_vector))
+            values = builder.EndVector(len(vvec))
             
             col_name = builder.CreateString(metadata[0])
             value_type = metadata[1]
@@ -93,23 +92,15 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
             Column.AddMetadata(builder, meta)
             Column.AddStringValues(builder, values)
             columns.append(Column.End(builder))
-
-    # Create a vector of Column objects
     DataFrame.StartColumnsVector(builder, len(columns))
-    for column in columns:
-        builder.PrependUOffsetTRelative(column)
+    for c in columns:
+        builder.PrependUOffsetTRelative(c)
     columns_vector = builder.EndVector(len(columns))
-    
-
-    # Create the DataFrame object
     DataFrame.Start(builder)
     DataFrame.AddMetadata(builder, metadata_string)
     DataFrame.AddColumns(builder, columns_vector)
     df_data = DataFrame.End(builder)
-
-    # Finish building the FlatBuffer
     builder.Finish(df_data)
-    # Get the bytes from the builder
     return builder.Output()
 
 
