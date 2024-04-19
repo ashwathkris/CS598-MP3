@@ -26,27 +26,24 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
     """
     builder = Builder(1024)
     metadata_string = builder.CreateString("DataFrame Metadata")
-    column_metadata_list = []
-    value_vectors = []
-    value_vectors_dtype = []
-    for column_name, dtype in df.dtypes.items():
-        if dtype == 'int64':
+    column_metadata_list=list()
+    vecs=list()
+    vecs_dtype=list()
+    for c, d in df.dtypes.items():
+        if d == 'int64':
             value_type = ValueType.ValueType().Int
-        elif dtype == 'float64':
+        elif d == 'float64':
             value_type = ValueType.ValueType().Float
-        elif dtype == 'object':
+        elif d == 'object':
             value_type = ValueType.ValueType().String
         else:
-            raise ValueError(f"Unsupported dtype: {dtype}")
-
-        column_metadata_list.append((column_name, value_type))
-
-        # Convert column values to FlatBuffer values
-        column_values = df[column_name]
-        value_vectors.append(column_values.tolist())
-        value_vectors_dtype.append(dtype)
-    columns = []
-    for dtype, metadata, value_vector in reversed(list(zip(value_vectors_dtype ,column_metadata_list, value_vectors))):
+            raise ValueError(f"Unsupported dtype: {d}")
+        column_metadata_list.append((c, value_type))
+        column_values = df[c]
+        vecs.append(column_values.tolist())
+        vecs_dtype.append(d)
+    columns = list()
+    for dtype, metadata, value_vector in reversed(list(zip(vecs_dtype ,column_metadata_list, vecs))):
         if dtype == 'int64':
             Column.StartIntValuesVector(builder, len(value_vector))
             for value in reversed(value_vector):
