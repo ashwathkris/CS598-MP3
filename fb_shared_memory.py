@@ -55,10 +55,11 @@ class FbSharedMemory:
 
             @param df_name: name of the Dataframe.
         """
-        if(df_name not in self.startdict):
-            return None
-        start=self.startdict[df_name]
-        size=struct.unpack_from('I', self.df_shared_memory.buf, start)[0]
+        if df_name not in self.startdict:
+            raise KeyError(f"Dataframe {df_name} not found in shared memory")
+        
+        start = self.startdict[df_name]
+        size = struct.unpack_from('I', self.df_shared_memory.buf, start)[0]
         return memoryview(self.df_shared_memory.buf[start+4:start+4+size])
 
 
