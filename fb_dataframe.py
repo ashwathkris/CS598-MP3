@@ -188,40 +188,32 @@ def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func:
         @param col_name: name of the numeric column to apply map_func to.
         @param map_func: function to apply to elements in the numeric column.
     """
-    # Access the buffer using the FlatBuffers builder
-    fb_bytes = bytearray(fb_buf)  # Convert memoryview to bytearray for in-place modifications
-    fb_df = DataFrame.DataFrame.GetRootAsDataFrame(fb_bytes, 0)
-
-    column = None
+    fb_bytes=bytearray(fb_buf)
+    fb_df=DataFrame.DataFrame.GetRootAsDataFrame(fb_bytes, 0)
+    column=None
     for i in range(fb_df.ColumnsLength()):
-        col = fb_df.Columns(i)
-        if col.Metadata().Name().decode() == col_name:
-            if col.Metadata().Dtype() in [ValueType.ValueType().Int, ValueType.ValueType().Float]:
-                column = col
+        col=fb_df.Columns(i)
+        if(col_name==col.Metadata().Name().decode()):
+            if(col.Metadata().Dtype() in [ValueType.ValueType().Int, ValueType.ValueType().Float]):
+                column=col
                 break
-
-    if not column:
-        print("Column not found or not a numeric type.")
-        return  # Early exit if column is not found or is of an incorrect type
-
-    if column.Metadata().Dtype() == ValueType.ValueType().Int:
-        offset_base = column._tab.Vector(column._tab.Offset(6))
-        num_elements = column.IntValuesLength()
-        for j in range(num_elements):
-            offset = offset_base + j * 8
-            original_value = struct.unpack('<q', fb_bytes[offset:offset + 8])[0]
-            new_value = map_func(original_value)
-            fb_bytes[offset:offset + 8] = struct.pack('<q', new_value)
-
-    elif column.Metadata().Dtype() == ValueType.ValueType().Float:
-        offset_base = column._tab.Vector(column._tab.Offset(8))
-        num_elements = column.FloatValuesLength()
-        for j in range(num_elements):
-            offset = offset_base + j * 8
-            original_value = struct.unpack('<d', fb_bytes[offset:offset + 8])[0]
-            new_value = map_func(original_value)
-            fb_bytes[offset:offset + 8] = struct.pack('<d', new_value)
-
-    # Replace the original memoryview with the modified bytearray
-    fb_buf[:] = fb_bytes 
+    if(not column):
+        return
+    if(ValueType.ValueType().Int==column.Metadata().Dtype()):
+        start=column._tab.Vector(column._tab.Offset(6))
+        n=column.IntValuesLength()
+        for j in range(n):
+            offset=start+j*8
+            og=struct.unpack('<q', fb_bytes[offset:offset + 8])[0]
+            val=map_func(og)
+            fb_bytes[offset:offset+8] = struct.pack('<q', val)
+    elif(column.Metadata().Dtype() == ValueType.ValueType().Float):
+        start=column._tab.Vector(column._tab.Offset(8))
+        n=column.FloatValuesLength()
+        for j in range(n):
+            offset=start + j * 8
+            og=struct.unpack('<d', fb_bytes[offset:offset + 8])[0]
+            val=map_func(og)
+            fb_bytes[offset:offset+8] = struct.pack('<d', val)
+    fb_buf[:]=fb_bytes 
     
