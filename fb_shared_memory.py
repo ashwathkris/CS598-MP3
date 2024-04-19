@@ -16,17 +16,23 @@ class FbSharedMemory:
         except FileNotFoundError:
             # Shared memory is not created yet, create it with size 200M.
             self.df_shared_memory = shared_memory.SharedMemory(name = "CS598", create=True, size=200000000)
-        self.start=0
-        self.offdict=dict()
-        try:
-            with open('offdict.json','r') as f:
-                self.offdict=json.load(f)
-        except FileNotFoundError:
-            self.offdict=dict()
 
-    # def save_mapping(self):
-    #     with open('offdict.json', 'w') as f:
-    #         json.dump(self.offdict, f)
+            # Add more initialization steps if needed here...
+        self.offset = 0
+        self.name_to_offset = {}
+        self.load_mapping()
+        # Add other class members you need here...
+
+    def save_mapping(self):
+        with open('name_to_offset.json', 'w') as f:
+            json.dump(self.name_to_offset, f)
+
+    def load_mapping(self):
+        try:
+            with open('name_to_offset.json', 'r') as f:
+                self.name_to_offset = json.load(f)
+        except FileNotFoundError:
+            self.name_to_offset = {}
 
     def add_dataframe(self, name: str, df: pd.DataFrame) -> None:
         """
@@ -36,7 +42,7 @@ class FbSharedMemory:
             @param df: the dataframe to add to shared memory.
         """
         # YOUR CODE HERE...
-        if name in self.offdict:
+        if name in self.name_to_offset:
             print(f"Dataframe with name {name} already exists.")
             return
         
@@ -44,19 +50,15 @@ class FbSharedMemory:
         fb_size = len(fb_data)
         total_size = 4 + fb_size  # Include size for length prefix
 
-        if self.start + total_size > self.df_shared_memory.size:
+        if self.offset + total_size > self.df_shared_memory.size:
             raise MemoryError("Not enough shared memory available")
 
-        struct.pack_into('I', self.df_shared_memory.buf, self.start, fb_size)
-        self.df_shared_memory.buf[self.start+4:self.start+4+fb_size] = fb_data
+        struct.pack_into('I', self.df_shared_memory.buf, self.offset, fb_size)
+        self.df_shared_memory.buf[self.offset+4:self.offset+4+fb_size] = fb_data
 
-        self.offdict[name] = self.start
-        self.start += total_size
-        try:
-            with open('offdict.json','r') as f:
-                self.offdict=json.load(f)
-        except FileNotFoundError:
-            self.offdict=dict()
+        self.name_to_offset[name] = self.offset
+        self.offset += total_size
+        self.save_mapping()
 
 
     def _get_fb_buf(self, df_name: str) -> memoryview:
@@ -66,12 +68,12 @@ class FbSharedMemory:
 
             @param df_name: name of the Dataframe.
         """
-        if df_name not in self.offdict:
+        if df_name not in self.name_to_offset:
             raise KeyError(f"Dataframe {df_name} not found in shared memory")
         
-        start = self.offdict[df_name]
-        size = struct.unpack_from('I', self.df_shared_memory.buf, start)[0]
-        return memoryview(self.df_shared_memory.buf[start+4:start+4+size])
+        offset = self.name_to_offset[df_name]
+        size = struct.unpack_from('I', self.df_shared_memory.buf, offset)[0]
+        return memoryview(self.df_shared_memory.buf[offset+4:offset+4+size])
 
 
     def dataframe_head(self, df_name: str, rows: int = 5) -> pd.DataFrame:
