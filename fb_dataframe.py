@@ -153,28 +153,29 @@ def fb_dataframe_group_by_sum(fb_bytes: bytes, grouping_col_name: str, sum_col_n
     buf=memoryview(fb_bytes)
     fb_df=DataFrame.DataFrame.GetRootAsDataFrame(buf, 0)
     s=dict()
-    indx = sum_col_index = -1
+    indx = -1
+    scidx = -1
     for i in range(fb_df.ColumnsLength()):
         col = fb_df.Columns(i)
         col_name = col.Metadata().Name().decode()
         if(col_name == grouping_col_name):
             indx = i
         elif(col_name == sum_col_name):
-            sum_col_index = i
-            if indx != -1:
+            scidx = i
+            if(indx != -1):
                 break
-    if(indx == -1 or sum_col_index == -1):
+    if(indx == -1 or scidx == -1):
         return
-    group_col = fb_df.Columns(indx)
-    sum_col = fb_df.Columns(sum_col_index)
-    for j in range(group_col.IntValuesLength()):
-        group_value = group_col.IntValues(j)
-        sum_value = sum_col.IntValues(j)
-        s[group_value] = s.get(group_value, 0) + sum_value
-    sorted_groups = sorted(s.items())
-    result_df = pd.DataFrame(sorted_groups, columns=[grouping_col_name, sum_col_name])
-    result_df.set_index(grouping_col_name, inplace=True)
-    return result_df
+    gc=fb_df.Columns(indx)
+    sc=fb_df.Columns(scidx)
+    for j in range(gc.IntValuesLength()):
+        group_value=gc.IntValues(j)
+        sum=sc.IntValues(j)
+        s[group_value]=s.get(group_value,0)+sum
+    sg=sorted(s.items())
+    res=pd.DataFrame(sg, columns=list(grouping_col_name, sum_col_name))
+    res.set_index(grouping_col_name, inplace=True)
+    return res
 
 
 def fb_dataframe_map_numeric_column(fb_buf: memoryview, col_name: str, map_func: types.FunctionType) -> None:
