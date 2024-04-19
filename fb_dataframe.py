@@ -29,15 +29,15 @@ def to_flatbuffer(df: pd.DataFrame) -> bytearray:
     column_metadata_list=list()
     vecs=list()
     vecs_dtype=list()
-    for c, d in df.dtypes.items():
-        if d == 'int64':
+    for c,d in df.dtypes.items():
+        if(d == 'int64'):
             value_type = ValueType.ValueType().Int
-        elif d == 'float64':
+        elif(d == 'float64'):
             value_type = ValueType.ValueType().Float
-        elif d == 'object':
+        elif(d == 'object'):
             value_type = ValueType.ValueType().String
         else:
-            raise ValueError(f"Unsupported dtype: {d}")
+            return
         column_metadata_list.append((c, value_type))
         column_values = df[c]
         vecs.append(column_values.tolist())
